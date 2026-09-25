@@ -2,20 +2,22 @@
 
 The roadmap is intentionally small and evidence-driven.
 
-## Near term
+## Now
 
 - configurable URL exclusions with documented reasons
 - retry policy for transient failures
-- optional report files for CI artifacts
-- line-number and source-file context for each link
 - tests for more Markdown edge cases
+
+## Next
+
+- optional per-host throttling
+- SARIF output for code-scanning integrations
 
 ## Later, if maintainers need it
 
-- rate limits per host
 - pluggable status policies
-- SARIF or GitHub job-summary output
-- stable tagged releases and package distribution
+- package-index distribution if direct user demand justifies it
+- opt-in cache for large documentation repositories
 
 ## Out of scope
 

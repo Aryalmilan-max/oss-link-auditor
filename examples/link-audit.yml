@@ -1,0 +1,20 @@
+name: Audit Markdown links
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: Aryalmilan-max/oss-link-auditor@v0.1.0
+        with:
+          paths: |
+            README.md
+            docs
+          fail-on-broken: "true"

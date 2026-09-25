@@ -1,0 +1,35 @@
+name: Real-world integration report
+description: Share a successful setup or a reproducible integration problem
+title: "integration: "
+labels: [integration]
+body:
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Integration surface
+      options:
+        - Command-line interface
+        - GitHub Action
+    validations:
+      required: true
+  - type: textarea
+    id: repository
+    attributes:
+      label: Repository or representative structure
+      description: Public URL preferred; remove private names and URLs if needed.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What worked, or what failed with a minimal reproduction?
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, tokens, and private URLs.
+          required: true
