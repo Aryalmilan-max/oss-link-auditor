@@ -1,7 +1,10 @@
-.PHONY: setup test demo check
+.PHONY: setup dev test demo check
 
 setup:
 	python3 -m venv .venv
+	.venv/bin/python -m pip install -e .
+
+dev: setup
 	.venv/bin/python -m pip install -e ".[dev]"
 
 test:

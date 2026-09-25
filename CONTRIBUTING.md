@@ -11,7 +11,7 @@ Thank you for helping improve OSS Link Auditor.
 ## Local setup
 
 ```bash
-make setup
+make dev
 . .venv/bin/activate
 make check
 ```
