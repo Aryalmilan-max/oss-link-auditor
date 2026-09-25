@@ -138,6 +138,19 @@ def validate_public_target(url: str) -> None:
         raise BlockedTargetError(f"non-public network address: {rendered}")
 
 
+def describe_network_error(error: Exception) -> str:
+    """Render common network failures as actionable, security-safe messages."""
+    reason = getattr(error, "reason", None)
+    if isinstance(error, ssl.SSLCertVerificationError) or isinstance(
+        reason, ssl.SSLCertVerificationError
+    ):
+        return (
+            "TLSCertificateError: certificate verification failed. Install or update "
+            "the CA certificates for this Python environment; TLS verification was not disabled."
+        )
+    return f"{type(error).__name__}: {error}"
+
+
 class SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
     """Validate every redirect destination before urllib connects to it."""
 
@@ -184,7 +197,7 @@ def check_link(url: str, timeout: float = 15.0, *, allow_private: bool = False) 
     # Third-party HTTP handlers can raise non-stdlib exception types. Convert all
     # of them to review findings so one URL cannot abort the complete audit.
     except Exception as error:  # noqa: BLE001
-        return LinkResult(url, None, None, f"{type(error).__name__}: {error}")
+        return LinkResult(url, None, None, describe_network_error(error))
 
 
 def audit_paths(

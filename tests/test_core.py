@@ -1,3 +1,4 @@
+import ssl
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
@@ -10,6 +11,7 @@ from oss_link_auditor.core import (
     SafeRedirectHandler,
     SourceLocation,
     audit_paths,
+    describe_network_error,
     discover_markdown,
     extract_link_occurrences,
     extract_links,
@@ -84,6 +86,12 @@ class NetworkSafetyTests(TestCase):
             handler.redirect_request(
                 Request("https://example.com"), None, 302, "Found", {}, "http://127.0.0.1/"
             )
+
+    def test_tls_error_explains_certificate_fix_without_weakening_tls(self) -> None:
+        error = ssl.SSLCertVerificationError("certificate verify failed")
+        message = describe_network_error(error)
+        self.assertIn("Install or update the CA certificates", message)
+        self.assertIn("TLS verification was not disabled", message)
 
 
 class LinkResultTests(TestCase):

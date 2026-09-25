@@ -4,7 +4,7 @@ from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
-from oss_link_auditor.cli import main, render_markdown
+from oss_link_auditor.cli import main, render_markdown, render_text
 from oss_link_auditor.core import AuditResult, LinkResult, SourceLocation
 
 SAMPLE = AuditResult(
@@ -55,3 +55,7 @@ class CliTests(TestCase):
         report = render_markdown(SAMPLE)
         self.assertIn("README.md:4", report)
         self.assertIn("REDIRECT-CROSS-HOST", report)
+
+    def test_text_report_separates_url_from_error(self) -> None:
+        report = render_text(SAMPLE)
+        self.assertIn("https://bad.test HTTP Error 404", report)

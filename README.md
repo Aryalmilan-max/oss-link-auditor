@@ -120,6 +120,14 @@ connection, so untrusted pull requests still belong on isolated hosted runners,
 not self-hosted runners with access to internal services. See
 [SECURITY.md](SECURITY.md).
 
+## Troubleshooting
+
+If every public HTTPS link reports `TLSCertificateError`, install or update the
+CA certificates for the Python environment. On the python.org macOS installer,
+run the bundled `Install Certificates.command`; on managed systems, follow the
+OS or Python distributor's CA setup. The tool will not bypass certificate
+verification to hide this environment problem.
+
 ## Supported Markdown links
 
 - inline links: `[Guide](https://example.com/guide)`

@@ -134,7 +134,11 @@ def render_text(result: AuditResult) -> str:
         )
     ]
     for link in result.links:
-        detail = link.error or (f" -> {link.destination}" if link.redirected else "")
+        detail = (
+            f" {link.error}"
+            if link.error
+            else (f" -> {link.destination}" if link.redirected else "")
+        )
         lines.append(f"[{link.category}] {location(link)} {link.url}{detail}")
     return "\n".join(lines)
 
