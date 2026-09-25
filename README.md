@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: Aryalmilan-max/oss-link-auditor@v0.1.0
+      - uses: Aryalmilan-max/oss-link-auditor@v0.1.1
         with:
           paths: |
             README.md
@@ -152,7 +152,7 @@ oss-link-auditor PATH [PATH ...] [--workers N] [--timeout SECONDS]
                  [--json | --markdown] [--fail-on-broken] [--allow-private]
 ```
 
-There is no configuration file in v0.1.0. Explicit command arguments keep CI
+There is no configuration file in v0.1.1. Explicit command arguments keep CI
 behavior visible. Exit codes are `0` for a completed audit, `1` when
 `--fail-on-broken` finds failures, and `2` for invalid input or setup errors.
 
