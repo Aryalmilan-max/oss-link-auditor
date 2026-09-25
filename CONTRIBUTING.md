@@ -8,5 +8,9 @@ Thank you for helping improve OSS Link Auditor.
 4. Do not add automatic link deletion. Network failures require human review.
 5. Run `python -m unittest discover -s tests -v` before submitting a change.
 
+Good first issues include parser edge cases, documentation improvements, and
+tests that reproduce a real maintainer workflow. Larger features should begin
+with an issue so their command-line and reporting behavior can be agreed first.
+
 Please use factual commit and pull-request descriptions and disclose any relevant
 affiliation when proposing behavior tailored to a particular service.

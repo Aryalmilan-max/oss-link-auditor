@@ -1,0 +1,47 @@
+name: OSS Link Auditor
+description: Audit broken and redirected links in Markdown with safe TLS defaults
+author: Aryalmilan-max
+
+branding:
+  icon: link
+  color: blue
+
+inputs:
+  paths:
+    description: Space-separated Markdown files or directories to audit
+    required: false
+    default: "."
+  fail-on-broken:
+    description: Return a failing status when broken or unreachable links are found
+    required: false
+    default: "true"
+  workers:
+    description: Maximum concurrent link checks
+    required: false
+    default: "12"
+  timeout:
+    description: Per-request timeout in seconds
+    required: false
+    default: "15"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      with:
+        python-version: "3.12"
+    - name: Audit Markdown links
+      shell: bash
+      env:
+        AUDIT_PATHS: ${{ inputs.paths }}
+        AUDIT_FAIL: ${{ inputs.fail-on-broken }}
+        AUDIT_WORKERS: ${{ inputs.workers }}
+        AUDIT_TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        read -r -a paths <<< "$AUDIT_PATHS"
+        args=("${paths[@]}" --workers "$AUDIT_WORKERS" --timeout "$AUDIT_TIMEOUT")
+        if [[ "$AUDIT_FAIL" == "true" ]]; then
+          args+=(--fail-on-broken)
+        fi
+        PYTHONPATH="$GITHUB_ACTION_PATH/src" python -m oss_link_auditor.cli "${args[@]}"
