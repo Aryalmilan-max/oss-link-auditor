@@ -8,7 +8,7 @@ branding:
 
 inputs:
   paths:
-    description: Space-separated Markdown files or directories to audit
+    description: Newline-separated Markdown files or directories to audit
     required: false
     default: "."
   fail-on-broken:
@@ -23,6 +23,10 @@ inputs:
     description: Per-request timeout in seconds
     required: false
     default: "15"
+  allow-private:
+    description: Allow private or loopback targets; only for trusted internal documentation
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -38,10 +42,24 @@ runs:
         AUDIT_FAIL: ${{ inputs.fail-on-broken }}
         AUDIT_WORKERS: ${{ inputs.workers }}
         AUDIT_TIMEOUT: ${{ inputs.timeout }}
+        AUDIT_ALLOW_PRIVATE: ${{ inputs.allow-private }}
       run: |
-        read -r -a paths <<< "$AUDIT_PATHS"
+        paths=()
+        while IFS= read -r path; do
+          if [[ -n "$path" ]]; then
+            paths+=("$path")
+          fi
+        done <<< "$AUDIT_PATHS"
         args=("${paths[@]}" --workers "$AUDIT_WORKERS" --timeout "$AUDIT_TIMEOUT")
         if [[ "$AUDIT_FAIL" == "true" ]]; then
           args+=(--fail-on-broken)
         fi
-        PYTHONPATH="$GITHUB_ACTION_PATH/src" python -m oss_link_auditor.cli "${args[@]}"
+        if [[ "$AUDIT_ALLOW_PRIVATE" == "true" ]]; then
+          args+=(--allow-private)
+        fi
+        set +e
+        PYTHONPATH="$GITHUB_ACTION_PATH/src" python -m oss_link_auditor.cli "${args[@]}" --markdown \
+          | tee oss-link-auditor-report.md
+        status=${PIPESTATUS[0]}
+        cat oss-link-auditor-report.md >> "$GITHUB_STEP_SUMMARY"
+        exit "$status"
