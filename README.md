@@ -20,6 +20,8 @@ report leads directly to a reviewable fix.
 
 ## See it in 60 seconds
 
+![Animated terminal demo showing healthy, redirected, and broken Markdown links](assets/demo.gif)
+
 Clone the project and run the deterministic demo—no public network required:
 
 ```bash
@@ -31,6 +33,10 @@ python3 scripts/demo.py
 The report separates `HEALTHY`, `REDIRECT`, `REDIRECT-CROSS-HOST`, `BROKEN`,
 and `BLOCKED` findings and shows exact `file:line` source locations.
 `make demo` is an equivalent convenience command.
+
+Want to evaluate the Action in another repository? Copy the
+[consumer workflow](examples/link-audit.yml), run it manually, and inspect the
+trust report in the GitHub Actions job summary.
 
 ## Why another link checker?
 
