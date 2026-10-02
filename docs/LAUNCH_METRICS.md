@@ -20,7 +20,19 @@ private when they contain account-level data.
 
 | Date/time (NPT) | Visitors | New stars | Conversion | Public adoptions | External contributors | Notes/source |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| YYYY-MM-DD HH:MM | — | — | — | — | — | Not measured |
+| 2026-10-02 10:36 | — | 0 | — | 0 | 0 | Public GitHub baseline; authenticated traffic unavailable |
 
 Do not backfill guesses. Use `—` for unavailable data and label estimates as
 estimates. A 10,000-star week is a breakout scenario, not an acceptance test.
+
+## Launch evidence
+
+Published on 2026-10-02 after verifying the default-branch Test and CodeQL
+workflows:
+
+- [GitHub launch announcement](https://github.com/Aryalmilan-max/oss-link-auditor/discussions/7)
+- [LinkedIn maintainer post](https://www.linkedin.com/feed/update/urn:li:activity:7511648988123815936/)
+- [separate public consumer workflow](https://github.com/Aryalmilan-max/oss-link-auditor-consumer-demo/actions/runs/36429117129)
+
+The consumer workflow proves reuse outside this repository but is owned by the
+same maintainer, so it is not counted as independent adoption.
