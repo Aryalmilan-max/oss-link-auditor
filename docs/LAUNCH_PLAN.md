@@ -1,5 +1,9 @@
 # Seven-day launch plan
 
+For the longer path from the current baseline to a possible 10,000-star
+outcome, use the [adoption and growth scorecard](GROWTH_SCORECARD.md). This
+seven-day plan is the first experiment, not a promise of viral growth.
+
 ## Goal and guardrails
 
 The goal is genuine maintainer adoption. Ten thousand stars in one week is an

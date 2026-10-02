@@ -1,6 +1,9 @@
 # OSS Link Auditor
 
 [![Test](https://github.com/Aryalmilan-max/oss-link-auditor/actions/workflows/test.yml/badge.svg)](https://github.com/Aryalmilan-max/oss-link-auditor/actions/workflows/test.yml)
+[![CodeQL](https://github.com/Aryalmilan-max/oss-link-auditor/actions/workflows/codeql.yml/badge.svg)](https://github.com/Aryalmilan-max/oss-link-auditor/actions/workflows/codeql.yml)
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-OSS%20Link%20Auditor-2088FF?logo=githubactions&logoColor=white)](https://github.com/marketplace/actions/oss-link-auditor)
+[![Release](https://img.shields.io/github/v/release/Aryalmilan-max/oss-link-auditor)](https://github.com/Aryalmilan-max/oss-link-auditor/releases/latest)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -17,6 +20,37 @@ a simple 404: an expired domain may now lead to unrelated or hijacked content.
 It never disables TLS verification and never deletes content automatically.
 Every finding includes the Markdown file and line where it appeared, so the
 report leads directly to a reviewable fix.
+
+## Add it to a repository
+
+Create `.github/workflows/link-audit.yml`:
+
+```yaml
+name: Audit Markdown links
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: Aryalmilan-max/oss-link-auditor@v0.1.1
+        with:
+          paths: |
+            README.md
+            docs
+          fail-on-broken: "true"
+```
+
+See a [successful run in a separate consumer repository](https://github.com/Aryalmilan-max/oss-link-auditor-consumer-demo/actions/runs/36429117129)
+or copy the versioned setup from the
+[GitHub Marketplace listing](https://github.com/marketplace/actions/oss-link-auditor).
 
 ## See it in 60 seconds
 
@@ -86,7 +120,7 @@ Fail CI only when a link is broken or unreachable:
 oss-link-auditor . --fail-on-broken
 ```
 
-## Use as a GitHub Action
+## Action options and security
 
 Add this workflow to `.github/workflows/link-audit.yml`:
 
@@ -115,7 +149,9 @@ jobs:
 
 The Action publishes the trust report in the workflow summary. For production
 workflows, pin third-party actions—including this one—to a full commit SHA after
-reviewing the source.
+reviewing the source. The Marketplace page provides versioned installation
+syntax; the [consumer proof](https://github.com/Aryalmilan-max/oss-link-auditor-consumer-demo)
+shows the same Action running outside this repository.
 
 ## Safe network defaults
 
