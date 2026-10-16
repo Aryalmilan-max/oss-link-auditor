@@ -7,6 +7,7 @@ from urllib.request import Request
 
 from oss_link_auditor.core import (
     BlockedTargetError,
+    ExclusionRule,
     LinkResult,
     SafeRedirectHandler,
     SourceLocation,
@@ -15,6 +16,7 @@ from oss_link_auditor.core import (
     discover_markdown,
     extract_link_occurrences,
     extract_links,
+    parse_exclusion_rule,
     validate_public_target,
 )
 
@@ -92,6 +94,88 @@ class NetworkSafetyTests(TestCase):
         message = describe_network_error(error)
         self.assertIn("Install or update the CA certificates", message)
         self.assertIn("TLS verification was not disabled", message)
+
+
+class ExclusionTests(TestCase):
+    def test_exact_url_and_host_wildcard(self) -> None:
+        exact = parse_exclusion_rule("url:https://example.org/old?q=1|Archived fixture")
+        host = parse_exclusion_rule("host:*.example.org|Staging only")
+        self.assertTrue(exact.matches("https://example.org/old?q=1"))
+        self.assertFalse(exact.matches("https://example.org/old?q=2"))
+        self.assertTrue(host.matches("https://docs.example.org/page"))
+        self.assertFalse(host.matches("https://example.org/page"))
+        self.assertFalse(host.matches("https://notexample.org/page"))
+
+    def test_invalid_rules_are_rejected(self) -> None:
+        for value in (
+            "host:example.org",
+            "host:example.org|",
+            "url:/relative|Reason",
+            "url:https://example.org:bad/|Reason",
+            "host:foo.*.org|Reason",
+            "host:bad..org|Reason",
+            "path:/docs|Reason",
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                parse_exclusion_rule(value)
+
+    @patch("oss_link_auditor.core.validate_public_target")
+    @patch("oss_link_auditor.core.check_link")
+    def test_excluded_links_are_visible_and_other_links_are_checked(
+        self, check_link_mock, validate_mock
+    ) -> None:
+        check_link_mock.side_effect = lambda url, timeout, allow_private=False: LinkResult(
+            url, 200, url
+        )
+        with TemporaryDirectory() as directory:
+            readme = Path(directory) / "README.md"
+            readme.write_text(
+                "[one](https://example.org/old)\n"
+                "[two](https://docs.example.org/page)\n"
+                "[three](https://other.example.net/live)\n",
+                encoding="utf-8",
+            )
+            result = audit_paths(
+                [readme],
+                workers=1,
+                exclusions=(
+                    parse_exclusion_rule("url:https://example.org/old|Archived"),
+                    parse_exclusion_rule("host:*.example.org|Staging"),
+                ),
+            )
+        self.assertEqual(
+            [link.category for link in result.links], ["EXCLUDED", "EXCLUDED", "HEALTHY"]
+        )
+        self.assertEqual(result.links[0].exclusion_reason, "Staging")
+        self.assertEqual(result.links[1].exclusion_reason, "Archived")
+        self.assertEqual(result.failures, ())
+        check_link_mock.assert_called_once_with(
+            "https://other.example.net/live", 15.0, allow_private=False
+        )
+        self.assertEqual(validate_mock.call_count, 2)
+
+    def test_private_target_stays_blocked_when_excluded(self) -> None:
+        rule = ExclusionRule("url", "http://127.0.0.1/admin", "Internal fixture")
+        with TemporaryDirectory() as directory:
+            readme = Path(directory) / "README.md"
+            readme.write_text("[admin](http://127.0.0.1/admin)", encoding="utf-8")
+            result = audit_paths([readme], exclusions=(rule,), workers=1)
+        self.assertEqual(result.links[0].category, "BLOCKED")
+        self.assertEqual(len(result.failures), 1)
+
+    @patch("oss_link_auditor.core.validate_public_target", side_effect=OSError("DNS failed"))
+    def test_dns_failure_stays_broken_when_excluded(self, validate_mock) -> None:
+        with TemporaryDirectory() as directory:
+            readme = Path(directory) / "README.md"
+            readme.write_text("[link](https://unresolved.example.org)", encoding="utf-8")
+            result = audit_paths(
+                [readme],
+                exclusions=(parse_exclusion_rule("host:*.example.org|Review later"),),
+                workers=1,
+            )
+        self.assertEqual(result.links[0].category, "BROKEN")
+        self.assertEqual(len(result.failures), 1)
+        validate_mock.assert_called_once_with("https://unresolved.example.org")
 
 
 class LinkResultTests(TestCase):
