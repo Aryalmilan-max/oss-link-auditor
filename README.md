@@ -179,6 +179,25 @@ verification to hide this environment problem.
 
 Image URLs are intentionally excluded from the current release.
 
+## Exclude known URLs with visible reasons
+
+Repeat `--exclude` to skip a known URL or host while retaining a review trail:
+
+```bash
+oss-link-auditor README.md \
+  --exclude 'url:https://example.org/retired|Archived documentation' \
+  --exclude 'host:*.example.org|Staging subdomains are not public'
+```
+
+`url:` matches one complete URL exactly. `host:` matches one hostname exactly;
+`host:*.example.org` matches its subdomains, but not `example.org`. The reason
+after `|` is required. The first matching rule supplies the reason.
+
+Excluded public links appear as `EXCLUDED` with their pattern and reason in
+text, Markdown, and JSON reports. They are not counted as healthy. Private and
+loopback targets remain `BLOCKED`; DNS failures remain `BROKEN`. Excluded links
+do not trigger `--fail-on-broken`, while blocked and broken links still do.
+
 ## Common use cases
 
 - stop broken documentation links from merging
@@ -191,6 +210,7 @@ Image URLs are intentionally excluded from the current release.
 
 ```text
 oss-link-auditor PATH [PATH ...] [--workers N] [--timeout SECONDS]
+                 [--exclude 'PATTERN|REASON']...
                  [--json | --markdown] [--fail-on-broken] [--allow-private]
 ```
 
