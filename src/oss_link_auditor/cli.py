@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from .core import AuditResult, LinkResult, audit_paths
+from .core import AuditResult, ExclusionRule, LinkResult, audit_paths, parse_exclusion_rule
 
 
 def positive_int(value: str) -> int:
@@ -24,6 +24,13 @@ def positive_float(value: str) -> float:
     return parsed
 
 
+def exclusion_rule(value: str) -> ExclusionRule:
+    try:
+        return parse_exclusion_rule(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="oss-link-auditor",
@@ -32,6 +39,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("paths", nargs="+", type=Path, help="Markdown files or directories")
     parser.add_argument("--workers", type=positive_int, default=12)
     parser.add_argument("--timeout", type=positive_float, default=15.0)
+    parser.add_argument(
+        "--exclude",
+        type=exclusion_rule,
+        action="append",
+        default=[],
+        metavar="PATTERN|REASON",
+        help="Repeat to exclude an exact url: or host: pattern with a visible reason",
+    )
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     output.add_argument("--markdown", action="store_true", help="Emit a Markdown trust report")
@@ -53,12 +68,14 @@ def summary(result: AuditResult) -> dict[str, int]:
         name: 0 for name in ("HEALTHY", "REDIRECT", "REDIRECT-CROSS-HOST", "BROKEN", "BLOCKED")
     }
     for link in result.links:
+        if link.category == "EXCLUDED" and "EXCLUDED" not in counts:
+            counts["EXCLUDED"] = 0
         counts[link.category] += 1
     return {"files": len(result.files), "links": len(result.links), **counts}
 
 
 def link_payload(link: LinkResult) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "url": link.url,
         "status": link.status,
         "destination": link.destination,
@@ -66,6 +83,12 @@ def link_payload(link: LinkResult) -> dict[str, object]:
         "category": link.category,
         "sources": [{"path": source.path, "line": source.line} for source in link.sources],
     }
+    if link.exclusion_reason is not None:
+        payload["exclusion"] = {
+            "pattern": link.exclusion_pattern,
+            "reason": link.exclusion_reason,
+        }
+    return payload
 
 
 def render_json(result: AuditResult) -> str:
@@ -104,6 +127,8 @@ def render_markdown(result: AuditResult) -> str:
         f"- Broken: {counts['BROKEN']}",
         f"- Blocked for safety: {counts['BLOCKED']}",
     ]
+    if counts.get("EXCLUDED"):
+        lines.append(f"- Excluded: {counts['EXCLUDED']}")
     findings = [link for link in result.links if link.category != "HEALTHY"]
     if not findings:
         return "\n".join(lines + ["", "✅ No findings require review."])
@@ -115,7 +140,11 @@ def render_markdown(result: AuditResult) -> str:
         ]
     )
     for link in findings:
-        detail = link.error or link.destination or "—"
+        detail = (
+            f"{link.exclusion_pattern}: {link.exclusion_reason}"
+            if link.exclusion_reason is not None
+            else link.error or link.destination or "—"
+        )
         lines.append(
             f"| {escape_cell(link.category)} | {escape_cell(location(link))} | "
             f"{escape_cell(link.status)} | {escape_cell(link.url)} | {escape_cell(detail)} |"
@@ -125,17 +154,20 @@ def render_markdown(result: AuditResult) -> str:
 
 def render_text(result: AuditResult) -> str:
     counts = summary(result)
+    excluded = f", {counts['EXCLUDED']} excluded" if counts.get("EXCLUDED") else ""
     lines = [
         (
             f"Scanned {counts['files']} file(s), {counts['links']} unique link(s): "
             f"{counts['HEALTHY']} healthy, "
             f"{counts['REDIRECT'] + counts['REDIRECT-CROSS-HOST']} redirect(s), "
-            f"{counts['BROKEN']} broken, {counts['BLOCKED']} blocked."
+            f"{counts['BROKEN']} broken, {counts['BLOCKED']} blocked{excluded}."
         )
     ]
     for link in result.links:
         detail = (
-            f" {link.error}"
+            f" {link.exclusion_pattern}: {link.exclusion_reason}"
+            if link.exclusion_reason is not None
+            else f" {link.error}"
             if link.error
             else (f" -> {link.destination}" if link.redirected else "")
         )
@@ -151,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
             workers=args.workers,
             timeout=args.timeout,
             allow_private=args.allow_private,
+            exclusions=args.exclude,
         )
     except (OSError, ValueError) as error:
         print(f"oss-link-auditor: error: {error}", file=sys.stderr)
