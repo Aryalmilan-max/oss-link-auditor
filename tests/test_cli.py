@@ -107,6 +107,19 @@ class CliTests(TestCase):
             main([".", "--exclude", "host:bad..org|Reason"])
         self.assertEqual(raised.exception.code, 2)
 
+    @patch("oss_link_auditor.cli.audit_paths", return_value=SAMPLE)
+    def test_retry_count_reaches_audit(self, audit_mock) -> None:
+        with redirect_stdout(StringIO()):
+            main([".", "--retries", "2"])
+        self.assertEqual(audit_mock.call_args.kwargs["retries"], 2)
+
+    def test_invalid_retry_count_is_cli_usage_error(self) -> None:
+        for value in ("-1", "4", "many"):
+            with self.subTest(value=value), redirect_stderr(StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    main([".", "--retries", value])
+                self.assertEqual(raised.exception.code, 2)
+
     def test_fail_on_broken_keeps_excluded_and_blocked_distinct(self) -> None:
         with TemporaryDirectory() as directory:
             readme = Path(directory) / "README.md"
