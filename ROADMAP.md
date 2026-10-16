@@ -4,7 +4,6 @@ The roadmap is intentionally small and evidence-driven.
 
 ## Now
 
-- configurable URL exclusions with documented reasons
 - retry policy for transient failures
 - tests for more Markdown edge cases
 
@@ -12,6 +11,10 @@ The roadmap is intentionally small and evidence-driven.
 
 - optional per-host throttling
 - SARIF output for code-scanning integrations
+
+## Done
+
+- configurable URL exclusions with documented reasons (#8)
 
 ## Later, if maintainers need it
 
