@@ -236,6 +236,7 @@ do not trigger `--fail-on-broken`, while blocked and broken links still do.
 
 ```text
 oss-link-auditor PATH [PATH ...] [--workers N] [--timeout SECONDS]
+                 [--retries N]
                  [--exclude 'PATTERN|REASON']...
                  [--json | --markdown] [--fail-on-broken] [--allow-private]
 ```
