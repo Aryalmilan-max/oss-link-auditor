@@ -120,6 +120,32 @@ Fail CI only when a link is broken or unreachable:
 oss-link-auditor . --fail-on-broken
 ```
 
+## Retry transient failures
+
+For sites that occasionally time out or return a temporary error, add up to
+three retries per URL:
+
+```bash
+oss-link-auditor docs/ --retries 2 --fail-on-broken
+```
+
+Retries are off by default. The auditor retries HTTP `429`, `500`, `502`, `503`,
+and `504`, plus timeouts and connection resets. It waits 0.5, 1, then 2 seconds
+between attempts. A numeric `Retry-After` header is honored up to 5 seconds;
+longer or unrecognized values leave the response as a reviewable failure rather
+than making CI wait indefinitely. The final report shows the final result, and
+`--fail-on-broken` still fails if every attempt fails. It does not retry `404`,
+TLS certificate errors, DNS failures, or blocked private targets. Each attempt
+rechecks the original target against the private-network safety rule.
+
+The Action has the same opt-in setting:
+
+```yaml
+with:
+  paths: docs
+  retries: "2"
+```
+
 ## Action options and security
 
 Add this workflow to `.github/workflows/link-audit.yml`:
@@ -210,6 +236,7 @@ do not trigger `--fail-on-broken`, while blocked and broken links still do.
 
 ```text
 oss-link-auditor PATH [PATH ...] [--workers N] [--timeout SECONDS]
+                 [--retries N]
                  [--exclude 'PATTERN|REASON']...
                  [--json | --markdown] [--fail-on-broken] [--allow-private]
 ```

@@ -2,7 +2,8 @@ import ssl
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
 from oss_link_auditor.core import (
@@ -12,6 +13,7 @@ from oss_link_auditor.core import (
     SafeRedirectHandler,
     SourceLocation,
     audit_paths,
+    check_link,
     describe_network_error,
     discover_markdown,
     extract_link_occurrences,
@@ -94,6 +96,87 @@ class NetworkSafetyTests(TestCase):
         message = describe_network_error(error)
         self.assertIn("Install or update the CA certificates", message)
         self.assertIn("TLS verification was not disabled", message)
+
+
+class RetryTests(TestCase):
+    @patch("oss_link_auditor.core.time.sleep")
+    @patch("oss_link_auditor.core.validate_public_target")
+    @patch("oss_link_auditor.core.urllib.request.build_opener")
+    def test_transient_http_failure_is_retried_and_revalidated(
+        self, build_opener, validate_target, sleep
+    ) -> None:
+        url = "https://example.org/docs"
+        response = MagicMock()
+        response.__enter__.return_value.status = 200
+        response.__enter__.return_value.geturl.return_value = url
+        opener = build_opener.return_value
+        opener.open.side_effect = [HTTPError(url, 503, "Unavailable", {}, None), response]
+
+        result = check_link(url, retries=1)
+
+        self.assertEqual(result.category, "HEALTHY")
+        self.assertEqual(opener.open.call_count, 2)
+        self.assertEqual(validate_target.call_count, 2)
+        sleep.assert_called_once_with(0.5)
+
+    @patch("oss_link_auditor.core.time.sleep")
+    @patch("oss_link_auditor.core.validate_public_target")
+    @patch("oss_link_auditor.core.urllib.request.build_opener")
+    def test_retry_after_is_honored_without_unbounded_wait(
+        self, build_opener, _validate_target, sleep
+    ) -> None:
+        url = "https://example.org/docs"
+        opener = build_opener.return_value
+        opener.open.side_effect = [
+            HTTPError(url, 429, "Rate limited", {"Retry-After": "2"}, None),
+            HTTPError(url, 503, "Unavailable", {"Retry-After": "60"}, None),
+        ]
+
+        result = check_link(url, retries=3)
+
+        self.assertEqual(result.status, 503)
+        self.assertEqual(result.category, "BROKEN")
+        self.assertEqual(opener.open.call_count, 2)
+        sleep.assert_called_once_with(2.0)
+
+    @patch("oss_link_auditor.core.time.sleep")
+    @patch("oss_link_auditor.core.validate_public_target")
+    @patch("oss_link_auditor.core.urllib.request.build_opener")
+    def test_timeout_retries_but_permanent_and_safety_errors_do_not(
+        self, build_opener, _validate_target, sleep
+    ) -> None:
+        url = "https://example.org/docs"
+        opener = build_opener.return_value
+        opener.open.side_effect = [URLError(TimeoutError("timed out")), TimeoutError("again")]
+        self.assertEqual(check_link(url, retries=1).category, "BROKEN")
+        self.assertEqual(opener.open.call_count, 2)
+        sleep.assert_called_once_with(0.5)
+
+        for error in (
+            HTTPError(url, 404, "Not found", {}, None),
+            URLError(ssl.SSLCertVerificationError("bad certificate")),
+            BlockedTargetError("private redirect"),
+        ):
+            with self.subTest(error=type(error).__name__):
+                opener.open.reset_mock(side_effect=True)
+                sleep.reset_mock()
+                opener.open.side_effect = error
+                self.assertEqual(
+                    check_link(url, retries=3).category,
+                    "BLOCKED" if isinstance(error, BlockedTargetError) else "BROKEN",
+                )
+                opener.open.assert_called_once()
+                sleep.assert_not_called()
+
+    @patch("oss_link_auditor.core.time.sleep")
+    @patch("oss_link_auditor.core.validate_public_target", side_effect=OSError("DNS failed"))
+    @patch("oss_link_auditor.core.urllib.request.build_opener")
+    def test_dns_failure_does_not_retry(self, build_opener, validate_target, sleep) -> None:
+        result = check_link("https://missing.example.org", retries=3)
+        self.assertEqual(result.category, "BROKEN")
+        validate_target.assert_called_once()
+        build_opener.return_value.open.assert_not_called()
+        sleep.assert_not_called()
 
 
 class ExclusionTests(TestCase):
@@ -220,3 +303,16 @@ class AuditPathsTests(TestCase):
             audit_paths([Path("README.md")], workers=0)
         with self.assertRaisesRegex(ValueError, "timeout"):
             audit_paths([Path("README.md")], timeout=0)
+        with self.assertRaisesRegex(ValueError, "retries"):
+            audit_paths([Path("README.md")], retries=4)
+
+    @patch("oss_link_auditor.core.check_link")
+    def test_forwards_opt_in_retry_count(self, check_link_mock) -> None:
+        check_link_mock.side_effect = lambda url, timeout, **kwargs: LinkResult(url, 200, url)
+        with TemporaryDirectory() as directory:
+            readme = Path(directory) / "README.md"
+            readme.write_text("[one](https://example.com)", encoding="utf-8")
+            audit_paths([readme], workers=1, retries=2)
+        check_link_mock.assert_called_once_with(
+            "https://example.com", 15.0, allow_private=False, retries=2
+        )

@@ -7,7 +7,14 @@ import json
 import sys
 from pathlib import Path
 
-from .core import AuditResult, ExclusionRule, LinkResult, audit_paths, parse_exclusion_rule
+from .core import (
+    MAX_RETRIES,
+    AuditResult,
+    ExclusionRule,
+    LinkResult,
+    audit_paths,
+    parse_exclusion_rule,
+)
 
 
 def positive_int(value: str) -> int:
@@ -21,6 +28,16 @@ def positive_float(value: str) -> float:
     parsed = float(value)
     if parsed <= 0:
         raise argparse.ArgumentTypeError("must be greater than 0")
+    return parsed
+
+
+def retry_count(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be an integer") from error
+    if not 0 <= parsed <= MAX_RETRIES:
+        raise argparse.ArgumentTypeError(f"must be between 0 and {MAX_RETRIES}")
     return parsed
 
 
@@ -39,6 +56,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("paths", nargs="+", type=Path, help="Markdown files or directories")
     parser.add_argument("--workers", type=positive_int, default=12)
     parser.add_argument("--timeout", type=positive_float, default=15.0)
+    parser.add_argument(
+        "--retries",
+        type=retry_count,
+        default=0,
+        metavar="N",
+        help="Retry transient HTTP errors and timeouts up to N times (0-3; default: 0)",
+    )
     parser.add_argument(
         "--exclude",
         type=exclusion_rule,
@@ -184,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout=args.timeout,
             allow_private=args.allow_private,
             exclusions=args.exclude,
+            retries=args.retries,
         )
     except (OSError, ValueError) as error:
         print(f"oss-link-auditor: error: {error}", file=sys.stderr)
