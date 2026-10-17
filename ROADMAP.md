@@ -4,7 +4,6 @@ The roadmap is intentionally small and evidence-driven.
 
 ## Now
 
-- retry policy for transient failures
 - tests for more Markdown edge cases
 
 ## Next
@@ -15,6 +14,7 @@ The roadmap is intentionally small and evidence-driven.
 ## Done
 
 - configurable URL exclusions with documented reasons (#8)
+- opt-in retry policy for transient failures
 
 ## Later, if maintainers need it
 
